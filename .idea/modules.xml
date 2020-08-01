@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/Procesamiento de Imágenes - Ramiro Feichubuinm.iml" filepath="$PROJECT_DIR$/.idea/Procesamiento de Imágenes - Ramiro Feichubuinm.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../preprocessor-mobile/.idea/preprocessor-mobile.iml" filepath="$PROJECT_DIR$/../preprocessor-mobile/.idea/preprocessor-mobile.iml" />
+    </modules>
+  </component>
+</project>

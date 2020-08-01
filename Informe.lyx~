@@ -1,0 +1,976 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement H
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1cm
+\rightmargin 1cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Corrección de color a partir de un patrón de referencia en escenario controlado
+\end_layout
+
+\begin_layout Date
+Trabajo Final de Procesamiento de Imágenes
+\end_layout
+
+\begin_layout Author
+Ramiro Andrés Feichubuinm
+\end_layout
+
+\begin_layout Section*
+Motivación
+\end_layout
+
+\begin_layout Standard
+El autor de este trabajo busca encontrar la forma de minimizar la varianza
+ en las adquisiciones por celular de un escenario controlado como el que
+ se muestra a continuación:
+\begin_inset VSpace 0.5cm
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset space \hspace{}
+\length 7cm
+\end_inset
+
+
+\begin_inset Graphics
+	filename Imagenes/corn.JPG
+	scale 3
+	rotateOrigin center
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+En dicha figura se identifican:
+\end_layout
+
+\begin_layout Itemize
+el patrón de referencia (arriba y abajo), 
+\end_layout
+
+\begin_layout Itemize
+a sus costados los fiduciarios (marcas para luego encontrar los patrones)
+ y
+\end_layout
+
+\begin_layout Itemize
+los granos de maiz, que en este caso son el objeto a corregir.
+\end_layout
+
+\begin_layout Standard
+La imagen mostrada fue adquirida con un celular.
+ Lógicamente, distintos celulares introducirán distintas perturbaciones.
+ Estas pueden deberse a la lente que usan, el hardware y software que poseen.
+ Se precisa entonces de un algoritmo que pueda resolver este problema de
+ forma dinámica para cada celular.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Introducción
+\end_layout
+
+\begin_layout Standard
+En este trabajo se busca implementar un algoritmo de corrección de color
+ a partir de un patrón de referencia.
+ Para ello se dispone de un escenario controlado en el cual se encuentra
+ el/los objeto/s a ser corregidos y dicho patrón.
+ De este modo, al adquirir una imagen, las distorsiones y/o perturbaciones
+ que se den (por óptica, hardware o software) afectarán a toda la escena.
+ Al poseer tanto el patrón de referencia Original como el Afectado/Modificado,
+ se podrá encontrar una transformación que invierta estos efectos.
+ 
+\end_layout
+
+\begin_layout Standard
+En el caso determinístico, donde se tiene la imagen Original no es necesario
+ un patrón, ya que a partir de una inversión matricial se puede encontrar
+ dicha transformación mencionada anteriormente.
+ Pero en general solamente se dispone de la imagen Modificada, solamente
+ pudiendo aproximar dicha transformación y minimizar el error entre ambas
+ imágenes.
+ 
+\end_layout
+
+\begin_layout Standard
+El objetivo de este trabajo, es entonces encontrar un algoritmo que desarrolle
+ esta tarea.
+\end_layout
+
+\begin_layout Section*
+Análisis
+\end_layout
+
+\begin_layout Standard
+Es importante entender que este problema, tal como se muestra en la imagen,
+ se encuentra mal condicionado.
+ Esto es debido a que en tanto cada objeto, en este caso cada grano que
+ es introducido en el escenario, sea del mismo tipo (todos granos de maiz,
+ todos granos de soja, etc.), no es necesario utilizar todas las gamas de
+ colores.
+ Aun más, podrían utilizarse más colores de los que se muestran en la imagen,
+ siempre limitándose al área útil designada a esta tarea observada en la
+ imagen.
+ 
+\end_layout
+
+\begin_layout Standard
+Esto fue implementado en la notebook 
+\emph on
+color.ipynb 
+\emph default
+adjunta, para el caso en cuestión.
+ En dicho trabajo se busca obtener muchos crops (área de interés del grano
+ previamente segmentado) de un mismo tipo, con el fin de estimar los centros
+ tonales.
+ Es decir, estadísticamente hablando, alrededor de qué colores se suelen
+ concentrar los pixeles.
+ 
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Para ello, se utiliza el algoritmo 
+\emph on
+k-means
+\emph default
+, donde dado un conjunto de observaciones (
+\begin_inset Formula $x_{1},x_{2},...,x_{n}$
+\end_inset
+
+), donde cada observación es un vector real de d dimensiones (en este caso
+ 3), k-medias construye una partición de las observaciones en k conjuntos
+ (k ≤ n) a fin de minimizar la suma de los cuadrados dentro de cada grupo
+ (WCSS): S = {
+\begin_inset Formula $S_{1},S_{2},...,S_{k}$
+\end_inset
+
+}.
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $\underset{S}{argmin}\stackrel[i=1]{k}{\sum}\underset{x_{j}\epsilon S_{i}}{\sum}\Vert x_{j}-\mu_{i}\Vert^{2}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A los colores obtenidos se les debe adicionar 8 (aunque podrían ser más)
+ grises, a modo de poder realizar un balance de blancos.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Posteriormente se analizaron distintas posibilidades para llevar a cabo
+ la tarea ya mencionada:
+\end_layout
+
+\begin_layout Itemize
+Utilizando una LUT en 3 dimensiones de 256x256x256 de manera de disponer
+ de la conversión de todos los colores existentes en RGB.
+ Los problemas son: la cantidad de memoria disponible, ya que el código
+ debe ser ejecutado en la nube, y la imposibilidad de albergar esa cantidad
+ de colores en la aplicación real.
+ Debido a ello el anterior responsable de esta tarea, desarrolló una LUT
+ con un conjunto reducido de colores, obteniendo los restantes por interpolación
+ cúbica.
+ Pero los resultados de este método producían variaciones agresivas en la
+ imagen.
+\end_layout
+
+\begin_layout Itemize
+Utilizando algoritmos complejos.
+ Existen redes neuronales que se ocupan de estas tareas, pero entrenarlas
+ demanda demasiados recursos (búsqueda de arquitectura óptima, digitalización
+ para generar un dataset, etc.).
+\end_layout
+
+\begin_layout Itemize
+Utilizar matrices de corrección de color (CCM).
+ Esta solución es aparentemente intermedia en términos de dificultad, tiempo
+ y resultados y por ello es la que fue aprobada por los superiores del responsab
+le a cargo.
+\end_layout
+
+\begin_layout Standard
+Se dejó para futuras iteraciones la posibilidad de realizar un análisis
+ más exhaustivo de las adquisiciones, modelar el sistema físico de digitalizació
+n a modo de mejorar propiedades ópticas del escenario para la obtención
+ de la imagen y cancelar efectos no deseados.
+\end_layout
+
+\begin_layout Section*
+Desarrollo
+\end_layout
+
+\begin_layout Standard
+El algoritmo desarrollado a continuación tiene origen en un trabajo ajeno
+ cuyo propósito es obtener el perfil ICC/ICM de una imagen para asegurar
+ la fiabilidad de reproducción de colores en otros dispositivos ([1]).
+ A grandes rasgos, el mismo consta de tres etapas:
+\end_layout
+
+\begin_layout Enumerate
+Compensación de brillo en el patrón
+\end_layout
+
+\begin_layout Enumerate
+Estimación de las curvas de reproducción de tono
+\end_layout
+
+\begin_layout Enumerate
+Estimación de la matriz de corrección de color
+\end_layout
+
+\begin_layout Standard
+Luego se aplican los pasos 2 y 3 a la imagen de interés.
+ A la hora de la implementación, se encontró que el primer paso resultaba
+ desfavorable, de todas formas se lo mantuvo en la implementación para futuros
+ ajustes.
+ Al desconocer el motivo, se lo dejó de lado.
+\end_layout
+
+\begin_layout Subsection*
+Estimación de las curvas de reproducción de tono
+\end_layout
+
+\begin_layout Standard
+Este paso es necesario a fin de realizar el balance de blancos anteriormente
+ mencionado.
+ A su vez, se busca corregir errores de forma independiente en cada canal,
+ es decir, asumiendo que las perturbaciones en uno de ellos no afecta a
+ los demás.
+ Para ello, se aplica el siguiente proceso ([2]) a los canales R, G y B
+ por separado:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $g(x)=a_{1}+a_{2}x+a_{3}sin(x)+a_{4}e^{x}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $0\text{≤}x\text{≤}1$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Como entrada de este proceso se utilizaran los 8 colores grises adicionados
+ de forma manual anteriormente mencionados.
+ Cada canal debe ser normalizado al rango [0, 1], para ello se realiza una
+ división por 255.
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Los coeficientes se ajustan siguiendo un criterio LS (Least Squares):
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $C=\stackrel[i=1]{8}{\sum}[y_{1}-\stackrel[n=4]{4}{\sum}a_{n}f_{n}(x)]$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+donde C es la función costo y:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $f_{1}(x)=1\;\;\;f_{2}(x)=x\;\;\;f_{3}(x)=sin(x)\;\;\;f_{4}(x)=e^{x}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Para minimizar el tiempo de procesamiento inherente del tiempo de procesamiento
+ (el tiempo demandado al 
+\emph on
+modificar
+\emph default
+ la imagen de interés con este perfil), se construye una LUT para cada canal.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Si bien los autores de la publicación original no aclaran ningún requerimiento
+ adicional, este proceso no converge a la solución necesaria si no se fuerzan
+ dos puntos (dos colores, pero puntos en la curva) adicionales más:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $g(0)=0$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $g(1)=1$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+De este modo se restringe la forma de la curva, evitando que los colores
+ fuente lleven hacia un colores destino no representables en el espacio
+ de colores utilizado (en este caso RGB).
+\end_layout
+
+\begin_layout Subsection*
+Estimación de la matriz de corrección de color
+\end_layout
+
+\begin_layout Standard
+Este procedimiento es el que intenta corregir errores de forma dependiente,
+ es decir, asume que todos los canales producen una contribución hacia los
+ demás, y los vincula según la siguiente relación:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $X_{destino}=x_{1}X_{fuente}+x_{2}Y_{fuente}+x_{3}Z_{fuente}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $Y_{destino}=y_{1}X_{fuente}+y_{2}Y_{fuente}+y_{3}Z_{fuente}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $Z_{destino}=z_{1}X_{fuente}+z_{2}Y_{fuente}+z_{3}Z_{fuente}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Por lo tanto, previamente se debe realizar una conversión de espacios de
+ colores 
+\begin_inset Formula $RGB\rightarrow XYZ$
+\end_inset
+
+ ([3]).
+ Esta conversión se realiza con el fin de 
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Un caso análogo a este es el de una rotación en el espacio de cuerpos sólidos.
+ En este problema se debe sustraer la ubicación del centro de masa del cuerpo,
+ de modo que la transformación sirva para cualquier sólido en ese espacio.
+ Del mismo modo, en el caso en cuestión, se debe sustraer la media.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Los coeficientes 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+, 
+\begin_inset Formula $y_{i}$
+\end_inset
+
+ y 
+\begin_inset Formula $z_{i}$
+\end_inset
+
+ se obtienen a partir de un criterio LS similar al anterior.
+ Se puede ver fácilmente que:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $CCM=\left(\begin{array}{ccc}
+x_{1} & x_{2} & x_{3}\\
+y_{1} & y_{2} & y_{3}\\
+z_{1} & z_{2} & z_{3}
+\end{array}\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+donde:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $IMG_{original}=CCM\:.\:IMG_{modificada}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+y 
+\begin_inset Formula $CCM^{-1}$
+\end_inset
+
+es la matriz de perturbaciones que se obtiene a partir de la estimación
+ de la matriz de corrección de color.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+La metodología mencionada hasta ahora funciona, pero con el fin de mejorar
+ los resultados se optó por tratar a la transformación en su forma polinómica
+ de segundo grado:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $X_{destino}=x_{0}+x_{11}X_{fuente}+x_{12}Y_{fuente}+x_{13}Z_{fuente}+x_{21}X_{fuente}^{2}+x_{22}Y_{fuente}^{2}+x_{23}Z_{fuente}^{2}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $Y_{destino}=y_{0}+y_{11}X_{fuente}+y_{12}Y_{fuente}+y_{13}Z_{fuente}+y_{21}X_{fuente}^{2}+y_{22}Y_{fuente}^{2}+y_{23}Z_{fuente}^{2}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $Z_{destino}=z_{0}+z_{11}X_{fuente}+z_{12}Y_{fuente}+z_{13}Z_{fuente}+z_{11}X_{fuente}^{2}+z_{12}Y_{fuente}^{2}+z_{13}Z_{fuente}^{2}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Se dejaron fuera ordenes superiores ya que la relación de compromiso 
+\emph on
+tiempo de procesamiento-precisión adicional de resultados 
+\emph default
+no era permisible en esta aplicación.
+ Los términos cruzados 
+\begin_inset Formula $XY$
+\end_inset
+
+, 
+\begin_inset Formula $XZ$
+\end_inset
+
+ e 
+\begin_inset Formula $YZ$
+\end_inset
+
+ no mostraron mejoría alguna.
+ También se suelen utilizar funciones root square a modo de acoplar el primer
+ grado con el segundo, pero tampoco resultaron útiles.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+También se puede representar estas operaciones de forma matricial:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $IMG_{original}=CCM_{1}\:.\:IMG_{modificada}+CCM_{2}\:.\:sqr(IMG_{modificada})+BIAS$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+donde:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $CCM_{1}=\left(\begin{array}{ccc}
+x_{11} & x_{12} & x_{13}\\
+y_{11} & y_{12} & y_{13}\\
+z_{11} & z_{12} & z_{13}
+\end{array}\right)$
+\end_inset
+
+
+\begin_inset space \hspace{}
+\length 2cm
+\end_inset
+
+
+\begin_inset Formula $CCM_{2}=\left(\begin{array}{ccc}
+x_{21} & x_{22} & x_{23}\\
+y_{21} & y_{22} & y_{23}\\
+z_{21} & z_{22} & z_{23}
+\end{array}\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $BIAS=\left(\begin{array}{c}
+x_{0}\\
+y_{0}\\
+z_{0}
+\end{array}\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+y la función 
+\emph on
+sqr() 
+\emph default
+es la función cuadrado element-wise.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Los valores iniciales de los coeficientes convergen de forma adecuada cuando
+ se los inicializa en 1.
+ De todas formas queda para futuras pruebas mejores estimaciones a priori
+ de los mismos.
+\end_layout
+
+\begin_layout Subsection*
+Aplicación del perfil
+\end_layout
+
+\begin_layout Standard
+Luego de obtener el perfil se lo debe aplicar a la imagen que se quiere
+ corregir.
+ Pero antes se debe entender que cualquier dispositivo realiza una compresión
+ gamma al momento de adquirir.
+ Dicho valor de gamma es
+\emph on
+ device-specific, 
+\emph default
+de modo que no hay forma de conocer a priori este valor.
+ Por lo tanto, la única forma de aproximarlo es iterar reiteradas veces
+ con distintos valores y elegir un valor que aproxime mejor en el sentido
+ estadístico para la mayoría de las imágenes en cuestión (en este caso,
+ tomadas con diferentes celulares).
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Una vez revertida la compresión, se utilizan las LUT obtenidas para cada
+ canal para realizar el ajuste de la etapa 2.
+ Para ello nuevamente se deben normalizar los valores de la imagen, aplicar
+ las curvas, y luego volver al rango [0, 255].
+ Para evitar que algún valor haya quedado por fuera de este rango, se realiza
+ un clipping.
+ Si bien anteriormente se forzaron valores para que esto no pase, a veces
+ dicho comportamiento no puede ser totalmente asegurado ya que los coeficientes
+ obtenidos buscan minimizar una relación sobre toda la imagen.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Nuevamente, se debe convertir la imagen a espacio de color 
+\begin_inset Formula $XYZ$
+\end_inset
+
+ y sustraer la media.
+ Ahora si, se está en condiciones de aplicar la transformación.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Finalmente se vuelve a 
+\begin_inset Formula $RGB$
+\end_inset
+
+, se adiciona la media y se realiza un clipping.
+ Cabe aclarar que siempre se debe cambiar el tipo de dato entre pasajes
+ de estos dos espacios de color.
+\end_layout
+
+\begin_layout Standard
+Cada una de las micro-operaciones necesarias (clipping, conversión de tipo
+ de datos, etc.) que se pueden encontrar en el código, hacen una contribución
+ al error final obtenido independiente del error de las estimaciones realizadas.
+ De esta forma, se puede expresar la función error 
+\emph on
+pixel-wise
+\emph default
+ de la siguiente manera:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $e(r_{e},g_{e},b_{e})=y(r,g,b)-\hat{y}(r',g',b')$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Donde 
+\begin_inset Formula $y(r,g,b)$
+\end_inset
+
+ es la imagen sin perturbaciones, y 
+\begin_inset Formula $\hat{y}(r,g,b)$
+\end_inset
+
+ es la estimación de la misma, que se obtiene luego de aplicar el perfil
+ a la imagen de interés.
+ Esta resta debe ser 
+\emph on
+channel-wise:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $r_{e}=r-r'$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $g_{e}=b-b'$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $b_{e}=b-b'$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Luego se establece una métrica con el fin de obtener una forma de realizar
+ comparaciones cualitativas.
+ Para ello se utiliza el MSE:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $MSE=\cfrac{1}{n}\stackrel[i=1]{n}{\sum}|e(i)|^{2}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+donde 
+\begin_inset Formula $n$
+\end_inset
+
+ es el número total de pixeles en la imagen.
+ Para una imagen, el valor absoluto de un pixel se define en base a la distancia
+ euclideana:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $MSE=\cfrac{1}{n}\stackrel[i=1]{n}{\sum}\sqrt{(r_{i}-r_{i}')^{2}+(g_{i}-g_{i}')^{2}+(b_{i}-b_{i}')^{2}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Conclusiones
+\end_layout
+
+\begin_layout Standard
+Como se mencionó durante el trabajo: Se deja para futuras iteraciones la
+ posibilidad de realizar un análisis más exhaustivo de las adquisiciones,
+ modelar el sistema físico de digitalización a modo de mejorar propiedades
+ ópticas del escenario para la obtención de la imagen y cancelar efectos
+ no deseados.
+ También se deja para futuras pruebas mejores estimaciones a priori de los
+ coeficientes iniciales de la CMM.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Dicho esto, se puede concluir (a partir de observar los resultados disponibles
+ en las notebooks que acompañan el trabajo), que dicha resolución maximiza
+ la relación de compromiso recursos utilizados-resultados en el corto plazo
+ para la tarea solicitada.
+\end_layout
+
+\begin_layout Section*
+Fuentes
+\end_layout
+
+\begin_layout Standard
+[1]
+\emph on
+ Color Correction System Using a Color Compensation Chart for the Images
+ from Digital Camera Seok-Han Lee, Sang-Won Um, and Jong-Soo Choi
+\end_layout
+
+\begin_layout Standard
+[2]
+\emph on
+ S.
+ Nakamura, “Applied Numerical Methods in C,” Prentice Hall
+\end_layout
+
+\begin_layout Standard
+
+\emph on
+[3] Procedural Elements for Computer Graphics by David F.
+ Rogers
+\end_layout
+
+\end_body
+\end_document
